@@ -122,7 +122,7 @@ GP.breed.model<-nimbleCode({
       p.breed[i,t]<-ilogit(logit.p.breed[i,t])
       
       ## success 
-      logit.p.succ[i,t] <- lp.succ + b.succ.win*win.att[i,t]      ### linear predictor for prob of breeding including a winter attendance effect
+      logit.p.succ[i,t] <- lp.succ + b.succ.win*win.att[i,t]      ### linear predictor for prob of success including a winter attendance effect
       p.succ[i,t]<-ilogit(logit.p.succ[i,t])
       
     } #t
