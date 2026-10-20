@@ -1340,3 +1340,84 @@ cat("\n============================================================\n")
 cat("FINAL ANALYSIS COMPLETE\n")
 cat("Outputs written to:", normalizePath(output_dir), "\n")
 cat("============================================================\n")
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# 12. ALTERNATIVE JOLLY-SEBER RECAPTURE MODEL
+# ==============================================================================
+
+
+GP_JS <- nimbleCode({
+  # -------------------------------------------------
+  # Parameters:
+  # phi: annual survival probability
+  # p: recapture probability
+  # N[i]: size of observed population in year i
+  # gamma: probability to enter marked population
+  # -------------------------------------------------
+  
+  # Priors and constraints
+  for (i in 1:M) {
+    for (t in 1:(n.years - 1)) {
+      phi[i, t] <- mean.phi       ## this can be linked to the multi-state model phi
+    } #t
+    for (t in 1:n.years) {
+      #expanded in effort corrected model
+      for (j in 1:n.occ) {
+        #expanded in effort corrected model for occasion specific capture probability
+        logit(p[i, j, t]) <- mean.lp + b.effort * hours[j, t]
+      } #j
+    } #t
+  } #i
+  
+  mean.phi ~ dbeta(80,15)              # Prior for mean adult survival - should be higher than 70%
+  mean.lp <- log(mean.p / (1 - mean.p))
+  mean.p ~ dunif(0, 1)                # Prior for mean capture
+  b.effort ~ dunif(-10, 10)
+  
+  for (t in 1:n.years) {
+    gamma[t] ~ dbeta(1.5, 25)           ## THIS IS THE PROBABILITY TO ENTER THE MARKED POPULATION - either fix or use informative prior
+  } #t
+  
+  # Likelihood
+  for (i in 1:M) {
+    # First occasion
+    # State process
+    z[i, 1] ~ dbern(gamma[1])
+    
+    # Observation process
+    for (j in 1:n.occ) {
+      mu1[i, j] <- z[i, 1] * p[i, j, 1]
+      y[i, j, 1] ~ dbern(mu1[i, j])
+    } #j
+    
+    
+    # Subsequent occasions
+    for (t in 2:n.years) {
+      # State process
+      q[i, t - 1] <- 1 - z[i, t - 1]		# Availability for recruitment
+      mu2[i, t] <- phi[i, t - 1] * z[i, t - 1] + gamma[t] * prod(q[i, 1:(t - 1)])
+      z[i, t] ~ dbern(mu2[i, t])
+      
+      # Observation process
+      for (j in 1:n.occ) {
+        mu3[i, j, t] <- z[i, t] * p[i, j, t]
+        y[i, j, t] ~ dbern(mu3[i, j, t])
+      } #j
+    } #t
+  } #i
+  
+  # Calculate derived population parameters
+  for (t in 1:n.years) {
+    N[t] <- sum(z[1:M, t])        # Actual population size
+    prop.observed[t] <- N[t]/M
+  } #t
+})  #### END OF THE MODEL STATEMENT
